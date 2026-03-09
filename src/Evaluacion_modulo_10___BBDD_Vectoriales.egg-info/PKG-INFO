@@ -1,3 +1,22 @@
+Metadata-Version: 2.4
+Name: Evaluacion-modulo-10---BBDD-Vectoriales
+Version: 0.1.0
+Summary: End2EndFlow
+Requires-Python: <3.13,>=3.11
+Description-Content-Type: text/markdown
+Requires-Dist: fastapi<1.0.0,>=0.117.1
+Requires-Dist: google-genai>=1.38.0
+Requires-Dist: llama-index>=0.14.2
+Requires-Dist: llama-index-embeddings-google-genai>=0.3.1
+Requires-Dist: llama-index-llms-google-genai>=0.5.1
+Requires-Dist: llama-index-vector-stores-qdrant>=0.8.5
+Requires-Dist: python-dotenv>=1.0.1
+Requires-Dist: pytest==8.2.0
+Requires-Dist: pypdf>=6.1.0
+Requires-Dist: qdrant-client==1.15.1
+Requires-Dist: ruff==0.4.3
+Requires-Dist: uvicorn[standard]<1.0.0,>=0.30.0
+
 # Phishing Knowledge RAG API
 
 API RAG para consultar informacion sobre phishing a partir de PDFs en `data/`.
