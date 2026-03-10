@@ -1,5 +1,6 @@
 import logging
 from contextlib import asynccontextmanager
+import os
 
 from fastapi import FastAPI
 
@@ -9,6 +10,7 @@ from src.api.router_langchain import router as langchain_rag_router
 from src.api.router_llamaindex import router as llamaindex_rag_router
 
 logger = logging.getLogger("uvicorn")
+api_key = os.environ.get('GEMINI_API_KEY')
 
 
 @asynccontextmanager
