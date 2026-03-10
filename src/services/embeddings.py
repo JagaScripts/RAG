@@ -1,19 +1,14 @@
-import os
-
-from dotenv import load_dotenv
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from llama_index.embeddings.google_genai import GoogleGenAIEmbedding
+from google import genai
 
+MODEL_NAME = 'models/gemini-embedding-001'
 
-load_dotenv()
+embeddings_google_genai = genai.Client()
 
+embeddings_model_langchain = GoogleGenerativeAIEmbeddings(model=MODEL_NAME)
 
-def build_llamaindex_embeddings() -> GoogleGenAIEmbedding:
-    api_key = os.getenv("GOOGLE_API_KEY", "")
-    if not api_key:
-        raise ValueError("Missing GOOGLE_API_KEY in environment")
-
-    return GoogleGenAIEmbedding(
-        model_name="models/gemini-embedding-001",
-        api_key=api_key,
-        embed_batch_size=16,
-    )
+embeddings_model_llama_index = GoogleGenAIEmbedding(
+    model_name=MODEL_NAME,
+    embed_batch_size=1,
+)

@@ -1,19 +1,23 @@
-import os
-
-from dotenv import load_dotenv
+#from langchain_openrouter import ChatOpenRouter
+from langchain_google_genai import ChatGoogleGenerativeAI
 from llama_index.llms.google_genai import GoogleGenAI
+from google import genai
 
+llm_langchain = ChatGoogleGenerativeAI(
+    model="gemini-2.5-flash-lite",
+    temperature=0,
+    max_retries=3
+)
 
-load_dotenv()
+#ChatOpenRouter(
+#    model="google/gemini-2.5-flash-lite",
+#    temperature=0,
+#    max_retries=3
+#)
 
+llm_llama_index = GoogleGenAI(
+    model="gemini-2.5-flash-lite",
+    temperature=0,
+)
 
-def build_llamaindex_llm() -> GoogleGenAI:
-    api_key = os.getenv("GOOGLE_API_KEY", "")
-    if not api_key:
-        raise ValueError("Missing GOOGLE_API_KEY in environment")
-
-    return GoogleGenAI(
-        model="gemini-2.5-flash-lite",
-        api_key=api_key,
-        temperature=0.1,
-    )
+llm_google_genai = genai.Client()

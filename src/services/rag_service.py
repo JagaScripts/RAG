@@ -11,6 +11,7 @@ from llama_index.embeddings.google_genai import GoogleGenAIEmbedding
 from llama_index.llms.google_genai import GoogleGenAI
 from llama_index.vector_stores.qdrant import QdrantVectorStore
 from qdrant_client import QdrantClient
+from qdrant_client.http.exceptions import ResponseHandlingException
 
 
 load_dotenv()
@@ -50,6 +51,15 @@ class RAGService:
         self.llm: GoogleGenAI | None = None
         self._index: VectorStoreIndex | None = None
 
+    def _ensure_qdrant_connection(self) -> None:
+        try:
+            self.qdrant_client.get_collections()
+        except ResponseHandlingException as exc:
+            raise ValueError(
+                "Cannot connect to Qdrant. Start it first (e.g. `docker compose -f docker_compose.yml up -d qdrant`) "
+                f"and verify QDRANT_URL={self.settings.qdrant_url}."
+            ) from exc
+
     def _ensure_models(self) -> None:
         if not self.settings.google_api_key:
             raise ValueError("Missing GOOGLE_API_KEY in environment")
@@ -83,6 +93,7 @@ class RAGService:
 
     def ingest(self, recreate: bool = True) -> dict[str, str | int]:
         self._ensure_models()
+        self._ensure_qdrant_connection()
 
         data_path = Path(self.settings.data_dir)
         if not data_path.exists():
@@ -118,6 +129,7 @@ class RAGService:
 
     def _load_index(self) -> VectorStoreIndex:
         self._ensure_models()
+        self._ensure_qdrant_connection()
 
         if self._index is not None:
             return self._index

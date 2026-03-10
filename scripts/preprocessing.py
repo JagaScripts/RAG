@@ -1,20 +1,78 @@
-import argparse
+from pypdf import PdfReader, PdfWriter
+from pypdf.generic import Destination
+from typing import Dict, List, Any
+import os
+import warnings
+warnings.filterwarnings("ignore")
 
-from src.services.rag_service import rag_service
+reader = PdfReader('data\\informe_mercado_de_trabajo_jovenes.pdf')
+output_dir = 'data\\optimized_chunks'
+os.makedirs(output_dir, exist_ok=True)
 
+chunk_level_info = [
+'Presentación',
+'Índices',
+'Objetivos',
+'Metodología',
+'Fuentes',
+'Indicadores de los colectivos de atención prioritaria para el empleo. Comparativa',
+'Los jóvenes menores de 30 años en el mercado laboral',
+'1. Población y actividad laboral',
+'2. El empleo',
+'3. El desempleo',
+'4. Ocupaciones',
+'Glosario de términos'
+]
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description="Ingest all PDFs from the configured data directory")
-    parser.add_argument(
-        "--no-recreate",
-        action="store_true",
-        help="Append data to existing collection instead of recreating it.",
-    )
-    args = parser.parse_args()
+bookmarks = reader.outline
 
-    result = rag_service.ingest(recreate=not args.no_recreate)
-    print(result)
+all_bookmark_info: List[Dict[str,Any]] = []
 
+for item in bookmarks:
+    if isinstance(item, Destination):
+        title = item.title 
+        page_number = reader.get_destination_page_number(item)
+        all_bookmark_info.append({"title": title, "start_page": page_number })
+    elif isinstance(item, list):
+        parent_bookmark = item[0]
+        title = parent_bookmark.title
+        page_number = reader.get_destination_page_number(parent_bookmark)
+        all_bookmark_info.append({"title": title, "start_page": page_number })
 
-if __name__ == "__main__":
-    main()
+all_filtered_bookmarks_info: List[Dict[str,Any]] = []
+for item in all_bookmark_info:
+    if item['title'] in chunk_level_info:
+        all_filtered_bookmarks_info.append(item)
+
+final_pages_division_info: List[Dict[str, Any]] = []
+final_page: int = len(reader.pages)
+
+for item, next_item in zip(all_filtered_bookmarks_info, all_filtered_bookmarks_info[1:]+[None]):
+    if next_item:
+        final_pages_division_info.append({
+            **item,
+            'final_page': next_item['start_page'] -1
+        })
+    else:
+        final_pages_division_info.append({
+            **item,
+            'final_page': final_page -1
+        })
+
+for section in final_pages_division_info:
+    writer = PdfWriter()
+    name = section['title']
+    start_page = section['start_page']
+    end_page = section['final_page']
+
+    if end_page > start_page:
+        for page_num in range(start_page,end_page):
+            writer.add_page(reader.pages[page_num])
+    elif end_page == start_page:
+        writer.add_page(reader.pages[start_page])
+
+    output_filename = f"{name}.pdf"
+    output_path = os.path.join(output_dir,output_filename)
+
+    with open(output_path, 'wb') as output_file:
+        writer.write(output_file)

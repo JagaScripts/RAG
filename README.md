@@ -4,30 +4,37 @@ API RAG para consultar informacion sobre phishing a partir de PDFs en `data/`.
 
 ## Flujo rapido (local)
 
-1. Copia variables de entorno:
+1. Crea variables de entorno:
 
-```bash
-cp .env.example .env
+```powershell
+Copy-Item .env.example .env
 ```
 
-2. Configura `GOOGLE_API_KEY` en `.env`.
+1. Configura `GOOGLE_API_KEY` en `.env`.
 
-3. Coloca tus PDFs sobre phishing dentro de `data/` (admite subcarpetas).
+1. Coloca tus PDFs sobre phishing dentro de `data/` (admite subcarpetas).
 
-4. Levanta Qdrant:
+1. Levanta Qdrant:
 
 ```bash
 docker compose -f docker_compose.yml up -d qdrant
 ```
 
-5. Instala dependencias y ejecuta API:
+1. Instala dependencias y ejecuta API:
 
 ```bash
-pip install -r requirements.txt
+pip install .
 python -m src.main
 ```
 
-6. Prueba endpoints:
+Alternativa con uv:
+
+```bash
+uv sync
+uv run python -m src.main
+```
+
+1. Prueba endpoints:
 
 ```bash
 curl http://localhost:8000/health
@@ -56,8 +63,53 @@ La API quedara en `http://localhost:8000`.
 
 ## Scripts utiles
 
-- `python scripts/preprocessing.py` ingesta todos los PDFs.
-- `python scripts/routing_generation.py "tu pregunta"` consulta por CLI.
+- `python -m scripts.preprocessing` ingesta todos los PDFs.
+- `python -m scripts.routing_generation "tu pregunta"` consulta por CLI.
+
+### Comando unico en PowerShell (WSL + Qdrant + indexado + API)
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\run_full_pipeline.ps1
+```
+
+Con uv:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\run_full_pipeline.ps1 -UseUv
+```
+
+Opciones utiles:
+
+```powershell
+# No regenera chunks/summaries
+powershell -ExecutionPolicy Bypass -File .\scripts\run_full_pipeline.ps1 -SkipPrepare
+
+# No reindexa
+powershell -ExecutionPolicy Bypass -File .\scripts\run_full_pipeline.ps1 -SkipIndex
+
+# No arranca la API
+powershell -ExecutionPolicy Bypass -File .\scripts\run_full_pipeline.ps1 -SkipApi
+
+# Usa uv para ejecutar scripts/API
+powershell -ExecutionPolicy Bypass -File .\scripts\run_full_pipeline.ps1 -UseUv
+```
+
+## Ejecucion de scripts con uv
+
+```bash
+uv run python scripts/prepare_data.py
+uv run python scripts/create_qdrant_index.py
+uv run python scripts/create_langchain_index.py
+uv run python scripts/create_llamaindex_indes.py
+```
+
+## Nota para Windows + Docker
+
+Si ves un error de conexion a Qdrant (`WinError 10061`), abre Docker Desktop y espera a que este en estado Running antes de ejecutar:
+
+```powershell
+docker compose -f docker_compose.yml up -d qdrant
+```
 
 ## Notas de diseno
 
