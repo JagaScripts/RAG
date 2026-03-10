@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from datetime import date
-import os
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -12,7 +12,6 @@ from llama_index.llms.google_genai import GoogleGenAI
 from llama_index.vector_stores.qdrant import QdrantVectorStore
 from qdrant_client import QdrantClient
 from qdrant_client.http.exceptions import ResponseHandlingException
-
 
 load_dotenv()
 
@@ -103,7 +102,9 @@ class RAGService:
         if pdf_count == 0:
             raise ValueError(f"No PDF files found in {data_path}")
 
-        if recreate and self.qdrant_client.collection_exists(self.settings.collection_name):
+        if recreate and self.qdrant_client.collection_exists(
+            self.settings.collection_name
+        ):
             self.qdrant_client.delete_collection(self.settings.collection_name)
 
         documents = SimpleDirectoryReader(
@@ -172,7 +173,11 @@ class RAGService:
         source_names = []
         for node in getattr(response, "source_nodes", []):
             metadata = getattr(node, "metadata", {}) or {}
-            source_name = metadata.get("file_name") or metadata.get("filename") or metadata.get("source")
+            source_name = (
+                metadata.get("file_name")
+                or metadata.get("filename")
+                or metadata.get("source")
+            )
             if source_name:
                 source_names.append(str(source_name))
 

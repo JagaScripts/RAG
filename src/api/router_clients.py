@@ -7,20 +7,21 @@ from src.services.vector_store import async_qdrant_client
 
 router = APIRouter()
 
+
 @router.post("/search")
 async def search(query: str):
     embeddings = await embeddings_google_genai.aio.models.embed_content(
-        model="gemini-embedding-001",
-        contents=query
+        model="gemini-embedding-001", contents=query
     )
 
     found_docs = await async_qdrant_client.search(
-        collection_name='qdrantclient_index',
+        collection_name="qdrantclient_index",
         query_vector=embeddings.embeddings[0].values,
         with_payload=True,
-        limit=5
+        limit=5,
     )
     return found_docs
+
 
 @router.post("/rag")
 async def rag_endpoint(request: RAGRequest):

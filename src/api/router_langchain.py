@@ -6,10 +6,12 @@ from src.services.vector_store import qdrant_langchain
 
 router = APIRouter()
 
+
 @router.post("/search")
 async def search(query: str):
     found_docs = await qdrant_langchain.asimilarity_search(query, k=5)
     return found_docs
+
 
 @router.post("/rag")
 async def rag_endpoint(request: RAGRequest):
@@ -20,6 +22,6 @@ async def rag_endpoint(request: RAGRequest):
     return {
         "question": result["question"],
         "answer": result["answer"],
-        "source": result["source"].selection if result.get('source') else None,
-        "source_reason": result["source"].reason if result.get('source') else None
+        "source": result["source"].selection if result.get("source") else None,
+        "source_reason": result["source"].reason if result.get("source") else None,
     }

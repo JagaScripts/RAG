@@ -1,7 +1,6 @@
 import json
 from pathlib import Path
 
-
 summaries_path = Path("data") / "summaries.json"
 if not summaries_path.exists():
     raise FileNotFoundError(
@@ -15,4 +14,4 @@ summaries["none"] = (
     "Usa esta clasificacion para preguntas fuera del alcance de los documentos de phishing."
 )
 
-__all__ = ['summaries']
+__all__ = ["summaries"]

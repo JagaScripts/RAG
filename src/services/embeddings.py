@@ -1,8 +1,8 @@
+from google import genai
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from llama_index.embeddings.google_genai import GoogleGenAIEmbedding
-from google import genai
 
-MODEL_NAME = 'models/gemini-embedding-001'
+MODEL_NAME = "models/gemini-embedding-001"
 
 embeddings_google_genai = genai.Client()
 

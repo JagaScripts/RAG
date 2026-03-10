@@ -1,14 +1,20 @@
-import sys; sys.path.append('.')
+import sys
+
+sys.path.append(".")
 from dotenv import load_dotenv
+
 load_dotenv()
 import asyncio
-from src.services.llms import llm_langchain
-from langchain_core.prompts import PromptTemplate
-from langchain_community.document_loaders import PyPDFLoader
-import json 
+import json
 import os
-from tenacity import retry, wait_fixed
 import warnings
+
+from langchain_community.document_loaders import PyPDFLoader
+from langchain_core.prompts import PromptTemplate
+from tenacity import retry, wait_fixed
+
+from src.services.llms import llm_langchain
+
 warnings.filterwarnings("ignore")
 
 prompt_template = """
@@ -23,9 +29,10 @@ Resume el siguiente documento:
 Resumen:
 """
 
-prompt = PromptTemplate(template=prompt_template, input_variables=['document_text'])
+prompt = PromptTemplate(template=prompt_template, input_variables=["document_text"])
 
 summarization_chain = prompt | llm_langchain
+
 
 @retry(wait=wait_fixed(5))
 async def summarize_document(file_path):
@@ -39,26 +46,24 @@ async def summarize_document(file_path):
 
     return summary.content
 
+
 async def main():
     results = {}
-    to_parse_documnents = os.listdir('data\\optimized_chunks')
-
+    to_parse_documnents = os.listdir("data\\optimized_chunks")
 
     for doc_name in to_parse_documnents:
         if doc_name.endswith(".pdf"):
-            print(f'Çhecking {doc_name}')
-            file_path = os.path.join('data\\optimized_chunks',doc_name)
+            print(f"Çhecking {doc_name}")
+            file_path = os.path.join("data\\optimized_chunks", doc_name)
             summary = await summarize_document(file_path)
             if summary:
-                results[doc_name.replace(".pdf","")] = summary
-                print(f'Ending {doc_name}')
-            #asyncio.sleep(60)
+                results[doc_name.replace(".pdf", "")] = summary
+                print(f"Ending {doc_name}")
+            # asyncio.sleep(60)
 
-    
-
-    with open('data\\summaries.json','w', encoding='utf-8') as f:
-        json.dump(results,f,indent=2)
+    with open("data\\summaries.json", "w", encoding="utf-8") as f:
+        json.dump(results, f, indent=2)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     asyncio.run(main())
