@@ -1,23 +1,63 @@
-\"\"\"RAG Service for Phishing Knowledge Base.\n\nCore module providing:
-- Document ingestion from PDFs into Qdrant vector store\n- Semantic search and retrieval using LangChain\n- Question answering using Google Gemini LLM\n- Source attribution for all answers\n\nIntegrations:\n- LangChain for text splitting, embeddings, and LLM orchestration\n- Google Gemini API for embeddings and chat\n- Qdrant for vector similarity search\n\"\"\"\n\nfrom __future__ import annotations\n\nfrom dataclasses import dataclass\nfrom difflib import SequenceMatcher\nimport os\nfrom pathlib import Path\nimport re\nimport unicodedata\n\nfrom dotenv import load_dotenv\nfrom langchain_community.document_loaders import DirectoryLoader, PyPDFLoader, TextLoader\nfrom langchain_core.documents import Document\nfrom langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings\nfrom langchain_qdrant import QdrantVectorStore\nfrom langchain_text_splitters import RecursiveCharacterTextSplitter\nfrom qdrant_client import QdrantClient\nfrom qdrant_client.http.exceptions import ResponseHandlingException\n\n\nload_dotenv()\n\n\ndef _as_bool(value: str | None, default: bool) -> bool:\n    \"\"\"Convert environment variable string to boolean.\n    \n    Recognizes: '1', 'true', 'yes', 'y', 'on' (case-insensitive).\n    \n    Args:\n        value: Environment variable value (string or None).\n        default: Default boolean value if value is None.\n        \n    Returns:\n        Parsed boolean value.\n    \"\"\"\n    if value is None:\n        return default\n    return value.strip().lower() in {\"1\", \"true\", \"yes\", \"y\", \"on\"}\n\n\ndef _normalize(value: str) -> str:\n    \"\"\"Normalize text for URL matching.\n    \n    Performs:\n    - Lowercase normalization\n    - Fixes common 'phising' typo to 'phishing'\n    - Unicode decomposition and ASCII conversion\n    - Removes non-alphanumeric characters (keeps spaces)\n    \n    Used for matching PDF names to URLs in knowledge base file.\n    \n    Args:\n        value: Text to normalize (typically PDF name).\n        \n    Returns:\n        Normalized text suitable for fuzzy matching.\n    \"\"\"\n    lowered = value.casefold().replace(\"phising\", \"phishing\")\n    normalized = unicodedata.normalize(\"NFKD\", lowered)\n    ascii_text = normalized.encode(\"ascii\", \"ignore\").decode(\"ascii\")\n    compact = re.sub(r\"[^a-z0-9]+\", \" \", ascii_text)\n    return re.sub(r\"\\s+\", \" \", compact).strip()
+"""Servicio RAG centralizado para indexación y consultas de documentos de phishing.
+
+Utiliza LangChain + Qdrant + Google Gemini para:
+- Cargar y procesar documentos PDF
+- Generar embeddings y almacenarlos en una base de datos vectorial
+- Recuperar documentos similares a consultas
+- Generar respuestas contextuales con atribución de fuentes
+"""
+from __future__ import annotations
+
+from dataclasses import dataclass
+from difflib import SequenceMatcher
+import os
+from pathlib import Path
+import re
+import unicodedata
+
+from dotenv import load_dotenv
+from langchain_community.document_loaders import DirectoryLoader, PyPDFLoader, TextLoader
+from langchain_core.documents import Document
+from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
+from langchain_qdrant import QdrantVectorStore
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from qdrant_client import QdrantClient
+from qdrant_client.http.exceptions import ResponseHandlingException
+
+
+load_dotenv()
+
+
+def _as_bool(value: str | None, default: bool) -> bool:
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "y", "on"}
+
+
+def _normalize(value: str) -> str:
+    lowered = value.casefold().replace("phising", "phishing")
+    normalized = unicodedata.normalize("NFKD", lowered)
+    ascii_text = normalized.encode("ascii", "ignore").decode("ascii")
+    compact = re.sub(r"[^a-z0-9]+", " ", ascii_text)
+    return re.sub(r"\s+", " ", compact).strip()
 
 
 @dataclass
 class Settings:
-    """Configuration for RAG system loaded from environment variables.
+    """Configuración del servicio RAG cargada desde variables de entorno.
     
-    Attributes:
-        google_api_key: API key for Google Generative AI.
-        qdrant_url: URL of Qdrant vector database.
-        collection_name: Name of Qdrant collection for phishing documents.
-        data_dir: Directory containing source PDF files.
-        chunks_dir: Directory with pre-chunked documents (overrides PDF loading if present).
-        urls_file: Path to file mapping document names to source URLs.
-        similarity_top_k: Number of documents to retrieve for each query.
-        chunk_size: Text chunk size for recursive splitting (characters).
-        chunk_overlap: Overlap between chunks to preserve context (characters).
-        auto_ingest_on_startup: Whether to index documents when service starts.
-        recreate_on_startup: Whether to rebuild collection instead of appending.
+    Atributos:
+        google_api_key: Clave API de Google para Gemini
+        qdrant_url: URL del servidor Qdrant
+        collection_name: Nombre de la colección en Qdrant
+        data_dir: Directorio con documentos PDF
+        chunks_dir: Directorio con chunks pre-procesados
+        urls_file: Archivo con mapeo de PDF a URLs
+        similarity_top_k: Número de documentos similares a recuperar
+        chunk_size: Tamaño de cada chunk en caracteres
+        chunk_overlap: Solapamiento entre chunks
+        auto_ingest_on_startup: Auto-indexar en inicio de aplicación
+        recreate_on_startup: Recrear colección en inicio
     """
     google_api_key: str
     qdrant_url: str
@@ -33,22 +73,17 @@ class Settings:
 
 
 class RAGService:
-    """Main service orchestrating document ingestion and Q&A over phishing knowledge base.
+    """Servicio RAG para indexación y consulta de documentos sobre phishing.
     
-    Handles:
-    - Configuration management from environment variables
-    - PDF or pre-chunked document loading
-    - Integration with Google Gemini for embeddings and LLM
-    - Vector store operations with Qdrant
-    - Source URL attribution for answers
+    Gestiona:
+    - Carga de configuración desde variables de entorno
+    - Conexión a Qdrant
+    - Inicialización perezosa de modelos (embeddings + LLM)
+    - Procesamiento de documentos
+    - Consultas RAG con fuentes
     """
-    
     def __init__(self) -> None:
-        """Initialize RAG service with settings from environment.
-        
-        Loads configuration, initializes Qdrant client, and prepares
-        lazy-loaded embeddings and LLM models.
-        """
+        """Inicializa el servicio RAG con configuración y cliente Qdrant."""
         self.settings = Settings(
             google_api_key=os.getenv("GOOGLE_API_KEY", ""),
             qdrant_url=os.getenv("QDRANT_URL", "http://localhost:6333"),
@@ -70,10 +105,10 @@ class RAGService:
         self._url_mapping_cache: dict[str, str] | None = None
 
     def _ensure_qdrant_connection(self) -> None:
-        """Verify Qdrant server is reachable before operations.
+        """Valida que Qdrant sea accesible.
         
         Raises:
-            ValueError: If Qdrant connection fails, with troubleshooting hint.
+            ValueError: Si Qdrant no responde o no está disponible.
         """
         try:
             self.qdrant_client.get_collections()
@@ -84,13 +119,13 @@ class RAGService:
             ) from exc
 
     def _ensure_models(self) -> None:
-        """Lazy-load Google Gemini embeddings and chat models.
+        """Inicializa modelos de embeddings y LLM (inicialización perezosa).
         
-        Initializes GoogleGenerativeAIEmbeddings for doc encoding and
-        ChatGoogleGenerativeAI for LLM responses. Cached after first call.
+        Crea instancias de GoogleGenerativeAIEmbeddings y ChatGoogleGenerativeAI
+        la primera vez que se llamam y las cachea.
         
         Raises:
-            ValueError: If GOOGLE_API_KEY environment variable is not set.
+            ValueError: Si GOOGLE_API_KEY no está configurada.
         """
         if not self.settings.google_api_key:
             raise ValueError("Missing GOOGLE_API_KEY in environment")
@@ -109,14 +144,15 @@ class RAGService:
             )
 
     def _load_urls_mapping(self) -> dict[str, str]:
-        """Load and cache URL mappings from knowledge base file.
+        """Carga el mapeo de nombres de PDF a URLs desde archivo.
         
-        Parses 'URLs base conocimiento.txt' expecting format:
-        - Document Name: https://url.com
+        Parsea 'URLs base conocimiento.txt' buscando líneas con formato:
+        '- Nombre PDF: https://url'
+        
+        Cachea el resultado para posteriores llamadas.
         
         Returns:
-            Dictionary mapping normalized document names to source URLs.
-            Cached after first load for performance.
+            Diccionario mapeando PDF normalizado a URL.
         """
         if self._url_mapping_cache is not None:
             return self._url_mapping_cache
@@ -142,16 +178,16 @@ class RAGService:
         return mapping
 
     def _match_source_url(self, pdf_path: Path) -> str | None:
-        """Match a PDF file to its source URL using fuzzy string matching.
+        """Busca la URL de fuente para un archivo PDF.
         
-        First tries exact normalized match, then falls back to SequenceMatcher
-        for fuzzy matching with 55% similarity threshold.
+        Primero intenta coincidencia exacta. Si falla, usa coincidencia difusa
+        (SequenceMatcher) con umbral del 55%.
         
         Args:
-            pdf_path: Path object of the PDF file.
+            pdf_path: Ruta al archivo PDF.
             
         Returns:
-            Source URL if found, None otherwise.
+            URL de la fuente, o None si no se encuentra.
         """
         urls_mapping = self._load_urls_mapping()
         if not urls_mapping:
@@ -174,16 +210,16 @@ class RAGService:
         return None
 
     def _load_pdf_documents(self) -> list[Document]:
-        """Load and parse PDF files from the data directory.
+        """Carga todos los archivos PDF del directorio de datos.
         
-        Recursively searches for *.pdf files, extracts pages, and enriches
-        metadata with file name and matched source URL.
+        Busca recursivamente archivos *.pdf, extrae páginas,
+        y enriquece metadatos con nombre de archivo y URL de fuente.
         
         Returns:
-            List of LangChain Document objects from all PDFs.
+            Lista de documentos LangChain extraidos de los PDFs.
             
         Raises:
-            ValueError: If data directory doesn't exist or no PDFs found.
+            ValueError: Si directorio no existe o no hay PDFs.
         """
         data_path = Path(self.settings.data_dir)
         if not data_path.exists():
@@ -211,29 +247,76 @@ class RAGService:
 
         return all_docs
 
-    def _load_chunk_documents(self) -> list[Document]:\n        \"\"\"Load pre-chunked documents from the chunks directory.\n        \n        Looks for pre-processed text chunks (generated by preprocessing scripts).\n        If chunks exist, they are preferred over PDF loading for faster indexing.\n        \n        Returns:\n            List of LangChain Document objects from chunk files, or empty list\n            if chunks directory doesn't exist.\n        \"\"\"\n        chunks_path = Path(self.settings.chunks_dir)\n        if not chunks_path.exists():\n            return []\n\n        loader = DirectoryLoader(\n            str(chunks_path),\n            glob="*.txt",\n            loader_cls=TextLoader,\n            loader_kwargs={"encoding": "utf-8"},\n        )\n        docs = loader.load()\n        if not docs:\n            return []\n\n        normalized_url_mapping = self._load_urls_mapping()\n        for doc in docs:\n            source_path = str((doc.metadata or {}).get("source", ""))\n            source_name = Path(source_path).stem.split("__chunk_")[0]\n            source_url = ""\n            normalized_key = _normalize(source_name)\n            if normalized_key in normalized_url_mapping:\n                source_url = normalized_url_mapping[normalized_key]\n            else:\n                best_key: str | None = None\n                best_score = 0.0\n                for key in normalized_url_mapping:\n                    score = SequenceMatcher(a=normalized_key, b=key).ratio()\n                    if score > best_score:\n                        best_score = score\n                        best_key = key\n                if best_key and best_score >= 0.55:\n                    source_url = normalized_url_mapping[best_key]\n\n            doc.metadata = {\n                **(doc.metadata or {}),\n                "file_name": source_name,\n                "file_stem": source_name,\n                "source_url": source_url,\n            }
+    def _load_chunk_documents(self) -> list[Document]:
+        """Carga documentos pre-procesados desde el directorio de chunks.
+        
+        Busca archivos *.txt en data/optimized_chunks/ (preferido sobre PDFs
+        para indexación más rápida). Enriquece metadatos con URLs de fuentes.
+        
+        Returns:
+            Lista de documentos desde chunks, o lista vacía si no existe directorio.
+        """
+        chunks_path = Path(self.settings.chunks_dir)
+        if not chunks_path.exists():
+            return []
+
+        loader = DirectoryLoader(
+            str(chunks_path),
+            glob="*.txt",
+            loader_cls=TextLoader,
+            loader_kwargs={"encoding": "utf-8"},
+        )
+        docs = loader.load()
+        if not docs:
+            return []
+
+        normalized_url_mapping = self._load_urls_mapping()
+        for doc in docs:
+            source_path = str((doc.metadata or {}).get("source", ""))
+            source_name = Path(source_path).stem.split("__chunk_")[0]
+            source_url = ""
+            normalized_key = _normalize(source_name)
+            if normalized_key in normalized_url_mapping:
+                source_url = normalized_url_mapping[normalized_key]
+            else:
+                best_key: str | None = None
+                best_score = 0.0
+                for key in normalized_url_mapping:
+                    score = SequenceMatcher(a=normalized_key, b=key).ratio()
+                    if score > best_score:
+                        best_score = score
+                        best_key = key
+                if best_key and best_score >= 0.55:
+                    source_url = normalized_url_mapping[best_key]
+
+            doc.metadata = {
+                **(doc.metadata or {}),
+                "file_name": source_name,
+                "file_stem": source_name,
+                "source_url": source_url,
+            }
 
         return docs
 
     def ingest(self, recreate: bool = True) -> dict[str, str | int | list[str]]:
-        """Index documents into Qdrant vector store.
+        """Indexa documentos en Qdrant.
         
-        Strategy:
-        1. Prefer pre-chunked documents if they exist (faster)
-        2. Fall back to loading and splitting PDFs
-        3. Generate embeddings using Google Gemini
-        4. Store in Qdrant with metadata
+        Estrategia:
+        1. Prefer chunks pre-procesados si existen (más rápido)
+        2. Sino, carga y divide PDFs
+        3. Genera embeddings con Google Gemini
+        4. Almacena en Qdrant con metadatos
         
         Args:
-            recreate: If True, recreate collection (destroys existing data).
-                     If False, append to existing collection.
+            recreate: Si True, recrea la colección (destruye datos existentes).
+                     Si False, añade a colección existente.
                      
         Returns:
-            Dictionary with ingestion statistics: collection name, page/chunk counts,
-            indexed files, and source URLs.
+            Diccionario con estadísticas: nombre colección, páginas/chunks indexados,
+            archivos indexados, y URLs de fuentes.
             
         Raises:
-            ValueError: If no documents found or cannot connect to Qdrant.
+            ValueError: Si no hay documentos o falla conexión a Qdrant.
         """
         self._ensure_models()
         self._ensure_qdrant_connection()
@@ -278,16 +361,16 @@ class RAGService:
         }
 
     def _get_vector_store(self) -> QdrantVectorStore:
-        """Get or initialize QdrantVectorStore for similarity search.
+        """Obtiene o inicializa QdrantVectorStore para búsquedas de similitud.
         
-        Lazily loads embeddings and connects to existing Qdrant collection.
-        Cached after first retrieval.
+        Carga perezosamente embeddings y conecta a colección Qdrant existente.
+        Cachea después de primera recuperación.
         
         Returns:
-            QdrantVectorStore instance connected to the configured collection.
+            Instancia QdrantVectorStore conectada a colección configurada.
             
         Raises:
-            ValueError: If collection doesn't exist or connection fails.
+            ValueError: Si colección no existe o falla conexión.
         """
         self._ensure_models()
         self._ensure_qdrant_connection()
@@ -306,24 +389,24 @@ class RAGService:
         return self.vector_store
 
     def ask(self, question: str) -> dict[str, str | list[str]]:
-        """Answer a question using RAG (Retrieval-Augmented Generation).
+        """Responde una pregunta usando RAG (Generación Aumentada con Recuperación).
         
-        Process:
-        1. Retrieve most similar documents from vector store
-        2. Build context from retrieved documents
-        3. Generate answer using Google Gemini with the context
-        4. Extract and return source URLs for attribution
+        Proceso:
+        1. Recupera documentos más similares del índice vectorial
+        2. Construye contexto con esos documentos
+        3. Genera respuesta con Google Gemini usando el contexto
+        4. Extrae y retorna URLs de fuentes para atribución
         
         Args:
-            question: The user's question about phishing.
+            question: Pregunta del usuario sobre phishing.
             
         Returns:
-            Dictionary with:
-            - 'answer': Generated response with sources appended
-            - 'sources': List of source URLs used in the answer
+            Diccionario con:
+            - 'answer': Respuesta generada con fuentes adjuntas
+            - 'sources': Lista de URLs de fuentes usadas
             
         Raises:
-            ValueError: If question is empty or collection not found.
+            ValueError: Si pregunta está vacía o colección no existe.
         """
         clean_question = question.strip()
         if not clean_question:
@@ -369,5 +452,5 @@ class RAGService:
         }
 
 
-# Global singleton instance of RAGService for FastAPI to import and use in endpoints
+# Instancia singleton global de RAGService para que FastAPI la importe y use en endpoints
 rag_service = RAGService()

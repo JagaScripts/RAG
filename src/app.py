@@ -1,11 +1,10 @@
-"""FastAPI application for the Phishing RAG system.
+"""Aplicación FastAPI para el sistema RAG de phishing.
 
-Defines endpoints for:
-- Health checks
-- Document ingestion into Qdrant vector store
-- Question answering with source attribution
+Define:
+- Modelos de solicitud (IngestRequest, AskRequest)
+- Contexto de ciclo de vida (lifespan) para auto-ingesta de documentos
+- Endpoints HTTP (/health, /ingest, /ask)
 """
-
 from contextlib import asynccontextmanager
 import logging
 
@@ -19,29 +18,34 @@ logger = logging.getLogger("uvicorn")
 
 
 class IngestRequest(BaseModel):
-    """Request model for document ingestion.
+    """Solicitud para indexar documentos en Qdrant.
     
-    Attributes:
-        recreate: If True, recreates the Qdrant collection; if False, appends to existing.
+    Atributos:
+        recreate: Si es True, recrea la colección (borra datos existentes).
+                 Si es False, añade a la colección existente.
     """
-    recreate: bool = Field(default=True, description="If true, recreate the collection before indexing")
+    recreate: bool = Field(default=True, description="Si es True, recrea la colección antes de indexar")
 
 
 class AskRequest(BaseModel):
-    """Request model for phishing knowledge queries.
+    """Solicitud para hacer una pregunta al RAG.
     
-    Attributes:
-        question: The question to ask the RAG system about phishing.
+    Atributos:
+        question: Pregunta sobre phishing (debe tener al menos 1 carácter).
     """
     question: str = Field(min_length=1)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Manage API startup and shutdown events.
+    """Gestor de contexto del ciclo de vida de la aplicación.
     
-    On startup: Optionally ingests documents into Qdrant (if AUTO_INGEST_ON_STARTUP=true).
-    On shutdown: Logs shutdown event.
+    En el inicio:
+    - Intenta hacer auto-ingesta de documentos si está configurado
+    - Registra eventos de inicio y parada
+    
+    Yields:
+        Control de la aplicación.
     """
     logger.info("Starting Phishing RAG API")
     if rag_service.settings.auto_ingest_on_startup:
@@ -64,28 +68,30 @@ app = FastAPI(
 
 @app.get("/")
 async def read_root() -> dict[str, str]:
-    """Root endpoint returning API status."""
     return {"message": "Phishing RAG API is running"}
 
 
 @app.get("/health")
 async def health() -> dict[str, str]:
-    """Health check endpoint."""
     return {"status": "ok"}
 
 
 @app.post("/ingest")
 async def ingest(request: IngestRequest) -> dict[str, str | int | list[str]]:
-    """Ingest PDF documents into the Qdrant vector store.
+    """Indexar documentos PDFs en Qdrant.
     
-    Processes PDFs or pre-chunked documents, generates embeddings using Google Gemini,
-    and stores them in Qdrant for similarity search.
+    Carga documentos, genera embeddings con Google Gemini,
+    y los almacena en Qdrant para posteriores búsquedas de similitud.
     
     Args:
-        request: IngestRequest with recreate flag.
+        request: IngestRequest con bandera de recreación.
         
     Returns:
-        Dictionary with collection info, chunk count, file names, and source URLs.
+        Diccionario con estadísticas: nombre de colección, cantidad de chunks,
+        archivos indexados y URLs de fuentes.
+        
+    Raises:
+        HTTPException: Si falla la ingesta o conexión a Qdrant.
     """
     try:
         return rag_service.ingest(recreate=request.recreate)
@@ -97,16 +103,21 @@ async def ingest(request: IngestRequest) -> dict[str, str | int | list[str]]:
 
 @app.post("/ask")
 async def ask(request: AskRequest) -> dict[str, str | list[str]]:
-    """Answer a question using the RAG system.
+    """Responder una pregunta usando el RAG (Generación Aumentada con Recuperación).
     
-    Retrieves relevant document chunks from Qdrant, generates a response using
-    Google Gemini, and includes source URLs for attribution.
+    Busca documentos similares en el índice, construye contexto,
+    y genera una respuesta con Google Gemini adjuntando las fuentes.
     
     Args:
-        request: AskRequest with the phishing question.
+        request: AskRequest con la pregunta sobre phishing.
         
     Returns:
-        Dictionary with generated answer and list of source URLs.
+        Diccionario con:
+        - 'answer': Respuesta generada con fuentes adjuntas
+        - 'sources': Lista de URLs de fuentes usadas
+        
+    Raises:
+        HTTPException: Si falla la consulta o colección no existe.
     """
     try:
         return rag_service.ask(request.question)

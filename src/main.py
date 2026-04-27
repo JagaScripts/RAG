@@ -1,9 +1,7 @@
-"""Entry point for the Phishing RAG API.
+"""Punto de entrada para la API del RAG de phishing.
 
-Starts the FastAPI server using Uvicorn with the configured host and port.
-Reload is disabled for production-like behavior.
+Inicia el servidor FastAPI usando Uvicorn en el puerto 8000.
 """
-
 import uvicorn
 
 if __name__ == "__main__":
