@@ -89,7 +89,29 @@ curl -X POST http://localhost:8000/ask -H "Content-Type: application/json" -d '{
 
 ## Endpoints
 
-- `GET /`
-- `GET /health`
-- `POST /ingest`
-- `POST /ask`
+
+## Testing
+
+Suite de tests con 27 tests unitarios e integración (pytest).
+
+### Ejecutar todos los tests:
+
+```bash
+uv run pytest tests/ -v
+```
+
+### Ejecutar tests de una clase específica:
+
+```bash
+uv run pytest tests/test_rag.py::TestHealthEndpoint -v
+```
+
+### Tests incluidos:
+
+- **Endpoints**: Validación de `/health`, `/ingest`, `/ask`
+- **Modelos**: Validación de `IngestRequest` y `AskRequest`
+- **Funciones Helper**: `_normalize`, `_as_bool`
+- **RAGService**: Configuración, modelos lazy-loading
+- **Integración**: Flujos completos con mocks
+
+Todos los tests usan mocks para no requerir Qdrant ni API key en ejecución.
