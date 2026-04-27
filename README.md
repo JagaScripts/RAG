@@ -1,37 +1,39 @@
-# Phishing Knowledge RAG API
+# Phishing RAG API
 
-Proyecto RAG centrado en phishing usando:
+Repositorio minimo para ejecutar un RAG sobre phishing con:
 
-- LangChain para retrieval + generacion
-- Qdrant como base de datos vectorial
-- Google Gemini (API KEY de Google) para embeddings y chat
-- 3 PDFs en `data/` como base de conocimiento
-- `URLs base conocimiento.txt` para mostrar la fuente URL en cada respuesta
+- FastAPI
+- LangChain
+- Qdrant
+- Google Gemini
 
-La API devuelve una unica respuesta textual y, al final, el bloque `Fuentes:` con las URLs de donde se obtuvo la informacion.
+El endpoint `POST /ask` devuelve siempre respuesta + bloque final `Fuentes:` con URLs.
 
-## Estructura funcional
+## Estructura
 
-- `src/services/rag_service.py`: servicio principal (ingesta, recuperacion, respuesta y fuentes)
-- `src/app.py`: API FastAPI con `/ingest` y `/ask`
-- `scripts/create_langchain_index.py`: indexado manual
-- `scripts/routing_generation.py`: consulta por CLI
+- `src/app.py`: API y endpoints
+- `src/main.py`: arranque local
+- `src/services/rag_service.py`: ingesta, retrieval y respuesta
+- `docker_compose.yml`: Qdrant + API
+- `qdrant_config/config.yml`: config de Qdrant
+- `.env.example`: variables de entorno
+- `URLs base conocimiento.txt`: mapeo documento -> URL fuente
 
 ## Requisitos
 
-- Python 3.11+
-- Docker Desktop (para Qdrant)
-- `GOOGLE_API_KEY`
+- Python 3.11 o 3.12
+- Docker Desktop en ejecución
+- API key de Google (`GOOGLE_API_KEY`)
 
 ## Configuracion
 
-1. Crea `.env` desde plantilla:
+1. Crear `.env`:
 
 ```powershell
 Copy-Item .env.example .env
 ```
 
-1. Edita `.env` y define al menos:
+1. Editar `.env` y completar al menos:
 
 ```env
 GOOGLE_API_KEY="tu_api_key"
@@ -47,35 +49,39 @@ AUTO_INGEST_ON_STARTUP="true"
 RECREATE_ON_STARTUP="true"
 ```
 
-1. Verifica que existan los 3 PDFs en `data/` y que `URLs base conocimiento.txt` tenga una URL por documento.
+## Ejecucion local
 
-## Arranque rapido (local)
-
-1. Levanta Qdrant:
+1. Levantar Qdrant:
 
 ```bash
 docker compose -f docker_compose.yml up -d qdrant
 ```
 
-1. Instala dependencias:
+1. Instalar dependencias:
 
 ```bash
 pip install .
 ```
 
-1. Arranca la API:
+1. Arrancar API:
 
 ```bash
 python -m src.main
 ```
 
-1. Indexa conocimiento (si no usas auto-ingest):
+1. Probar estado:
+
+```bash
+curl http://localhost:8000/health
+```
+
+1. Ingestar (si procede):
 
 ```bash
 curl -X POST http://localhost:8000/ingest -H "Content-Type: application/json" -d '{"recreate": true}'
 ```
 
-1. Pregunta sobre phishing:
+1. Preguntar al RAG:
 
 ```bash
 curl -X POST http://localhost:8000/ask -H "Content-Type: application/json" -d '{"question": "Que es el phishing y como protegerse?"}'
@@ -83,21 +89,7 @@ curl -X POST http://localhost:8000/ask -H "Content-Type: application/json" -d '{
 
 ## Endpoints
 
-- `GET /`: estado API
-- `GET /health`: healthcheck
-- `POST /ingest`: indexa PDFs (`{"recreate": true|false}`)
-- `POST /ask`: responde pregunta (`{"question": "..."}`)
-
-## Scripts utiles
-
-- `python -m scripts.create_langchain_index`: indexar desde terminal
-- `python -m scripts.routing_generation "tu pregunta"`: consultar por CLI
-- `powershell -ExecutionPolicy Bypass -File .\scripts\run_full_pipeline.ps1`: pipeline en Windows
-
-## Nota Windows + Docker
-
-Si aparece `WinError 10061`, Docker Desktop no esta levantado. Arrancalo y repite:
-
-```powershell
-docker compose -f docker_compose.yml up -d qdrant
-```
+- `GET /`
+- `GET /health`
+- `POST /ingest`
+- `POST /ask`

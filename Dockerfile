@@ -5,10 +5,11 @@ WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-COPY requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
-
-COPY . .
+COPY pyproject.toml README.md ./
+COPY src ./src
+COPY qdrant_config ./qdrant_config
+COPY ["URLs base conocimiento.txt", "./"]
+RUN pip install --no-cache-dir .
 
 EXPOSE 8000
 

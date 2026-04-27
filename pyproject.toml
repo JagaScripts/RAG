@@ -3,25 +3,21 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "Evaluacion-modulo-10---BBDD-Vectoriales"
+name = "phishing-rag-api"
 version = "0.1.0"
-description = "End2EndFlow"
+description = "RAG API de phishing con LangChain + Qdrant + Gemini"
 readme = "README.md"
 requires-python = ">=3.11,<3.13"
 dependencies = [
     "fastapi>=0.117.1,<1.0.0",
-    "google-genai>=1.38.0",
-    "llama-index>=0.14.2",
-    "llama-index-embeddings-google-genai>=0.3.1",
-    "llama-index-llms-google-genai>=0.5.1",
-    "llama-index-vector-stores-qdrant>=0.8.5",
-    "python-dotenv>=1.0.1",
-    "pytest==8.2.0",
+    "langchain>=0.3.27",
+    "langchain-community>=0.3.31",
+    "langchain-core>=0.3.79",
+    "langchain-google-genai>=2.1.12",
+    "langchain-qdrant>=0.2.1",
+    "langchain-text-splitters>=0.3.11",
     "pypdf>=6.1.0",
+    "python-dotenv>=1.0.1",
     "qdrant-client==1.15.1",
-    "ruff==0.4.3",
     "uvicorn[standard]>=0.30.0,<1.0.0",
 ]
-
-[tool.pytest.ini_options]
-pythonpath = ["."]

@@ -1,4 +1,6 @@
 .env
 qdrant_data/
+.pytest_cache/
 __pycache__/
 *.pyc
+*.egg-info/
