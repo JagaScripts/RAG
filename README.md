@@ -1,66 +1,103 @@
 # Phishing Knowledge RAG API
 
-API RAG para consultar informacion sobre phishing a partir de PDFs en `data/`.
+Proyecto RAG centrado en phishing usando:
 
-## Flujo rapido (local)
+- LangChain para retrieval + generacion
+- Qdrant como base de datos vectorial
+- Google Gemini (API KEY de Google) para embeddings y chat
+- 3 PDFs en `data/` como base de conocimiento
+- `URLs base conocimiento.txt` para mostrar la fuente URL en cada respuesta
 
-1. Copia variables de entorno:
+La API devuelve una unica respuesta textual y, al final, el bloque `Fuentes:` con las URLs de donde se obtuvo la informacion.
 
-```bash
-cp .env.example .env
+## Estructura funcional
+
+- `src/services/rag_service.py`: servicio principal (ingesta, recuperacion, respuesta y fuentes)
+- `src/app.py`: API FastAPI con `/ingest` y `/ask`
+- `scripts/create_langchain_index.py`: indexado manual
+- `scripts/routing_generation.py`: consulta por CLI
+
+## Requisitos
+
+- Python 3.11+
+- Docker Desktop (para Qdrant)
+- `GOOGLE_API_KEY`
+
+## Configuracion
+
+1. Crea `.env` desde plantilla:
+
+```powershell
+Copy-Item .env.example .env
 ```
 
-2. Configura `GOOGLE_API_KEY` en `.env`.
+1. Edita `.env` y define al menos:
 
-3. Coloca tus PDFs sobre phishing dentro de `data/` (admite subcarpetas).
+```env
+GOOGLE_API_KEY="tu_api_key"
+QDRANT_URL="http://localhost:6333"
+QDRANT_COLLECTION="phishing_knowledge"
+DATA_DIR="data"
+CHUNKS_DIR="data/optimized_chunks"
+KNOWLEDGE_URLS_FILE="URLs base conocimiento.txt"
+SIMILARITY_TOP_K="5"
+CHUNK_SIZE="1200"
+CHUNK_OVERLAP="200"
+AUTO_INGEST_ON_STARTUP="true"
+RECREATE_ON_STARTUP="true"
+```
 
-4. Levanta Qdrant:
+1. Verifica que existan los 3 PDFs en `data/` y que `URLs base conocimiento.txt` tenga una URL por documento.
+
+## Arranque rapido (local)
+
+1. Levanta Qdrant:
 
 ```bash
 docker compose -f docker_compose.yml up -d qdrant
 ```
 
-5. Instala dependencias y ejecuta API:
+1. Instala dependencias:
 
 ```bash
-pip install -r requirements.txt
+pip install .
+```
+
+1. Arranca la API:
+
+```bash
 python -m src.main
 ```
 
-6. Prueba endpoints:
+1. Indexa conocimiento (si no usas auto-ingest):
 
 ```bash
-curl http://localhost:8000/health
 curl -X POST http://localhost:8000/ingest -H "Content-Type: application/json" -d '{"recreate": true}'
-curl -X POST http://localhost:8000/ask -H "Content-Type: application/json" -d '{"question": "Que es phishing y que señales comunes lo delatan?"}'
 ```
 
-## Flujo con Docker Compose (API + Qdrant)
-
-1. Configura `.env` con tu API key.
-2. Mete PDFs en `data/`.
-3. Ejecuta:
+1. Pregunta sobre phishing:
 
 ```bash
-docker compose -f docker_compose.yml up --build
+curl -X POST http://localhost:8000/ask -H "Content-Type: application/json" -d '{"question": "Que es el phishing y como protegerse?"}'
 ```
-
-La API quedara en `http://localhost:8000`.
 
 ## Endpoints
 
-- `GET /`: estado basico de la API.
-- `GET /health`: healthcheck.
-- `POST /ingest`: indexa todos los PDFs en `data/`.
-- `POST /ask`: responde preguntas con recuperacion semantica y devuelve fuentes.
+- `GET /`: estado API
+- `GET /health`: healthcheck
+- `POST /ingest`: indexa PDFs (`{"recreate": true|false}`)
+- `POST /ask`: responde pregunta (`{"question": "..."}`)
 
 ## Scripts utiles
 
-- `python scripts/preprocessing.py` ingesta todos los PDFs.
-- `python scripts/routing_generation.py "tu pregunta"` consulta por CLI.
+- `python -m scripts.create_langchain_index`: indexar desde terminal
+- `python -m scripts.routing_generation "tu pregunta"`: consultar por CLI
+- `powershell -ExecutionPolicy Bypass -File .\scripts\run_full_pipeline.ps1`: pipeline en Windows
 
-## Notas de diseno
+## Nota Windows + Docker
 
-- El sistema responde usando exclusivamente la informacion recuperada de tus PDFs.
-- Para tener informacion actualizada de phishing, agrega PDFs recientes y vuelve a ejecutar ingesta.
-- Si `AUTO_INGEST_ON_STARTUP=true`, al iniciar la API se indexan automaticamente los PDFs.
+Si aparece `WinError 10061`, Docker Desktop no esta levantado. Arrancalo y repite:
+
+```powershell
+docker compose -f docker_compose.yml up -d qdrant
+```
