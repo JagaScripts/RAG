@@ -1,9 +1,7 @@
-name: Knowledge RAG CI
+name: CI Deployment Pipeline
 
 on:
   push:
-    branches: [ main, develop ]
-  pull_request:
     branches: [ main, develop ]
 
 jobs:
@@ -35,8 +33,8 @@ jobs:
 
       - name: Init Qdrant Collections
         run: |
-          curl -X PUT 'http://localhost:6333/collections/langchain_index' -H 'Content-Type: application/json' -d '{"vectors": {"size": 768, "distance": "Cosine"}}'
-          curl -X PUT 'http://localhost:6333/collections/llamaindex_index' -H 'Content-Type: application/json' -d '{"vectors": {"size": 768, "distance": "Cosine"}}'
+          curl -X PUT 'http://localhost:6333/collections/langchain_index' -H 'Content-Type: application/json' -d '{"vectors": {"size": 3072, "distance": "Cosine"}}'
+          curl -X PUT 'http://localhost:6333/collections/llamaindex_index' -H 'Content-Type: application/json' -d '{"vectors": {"size": 3072, "distance": "Cosine"}}'
 
       - name: Run Pytest
         env:
