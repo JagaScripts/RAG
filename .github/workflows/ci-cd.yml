@@ -33,6 +33,11 @@ jobs:
       - name: Run Linter (Ruff)
         run: uv run ruff check .
 
+      - name: Init Qdrant Collections
+        run: |
+          curl -X PUT 'http://localhost:6333/collections/langchain_index' -H 'Content-Type: application/json' -d '{"vectors": {"size": 768, "distance": "Cosine"}}'
+          curl -X PUT 'http://localhost:6333/collections/llamaindex_index' -H 'Content-Type: application/json' -d '{"vectors": {"size": 768, "distance": "Cosine"}}'
+
       - name: Run Pytest
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY != '' && secrets.GEMINI_API_KEY || 'dummy-gemini-key' }}

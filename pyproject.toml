@@ -36,3 +36,10 @@ target-version = "py311"
 [tool.ruff.lint]
 # Ignorar errores de posición de importación (E402) y excepciones genéricas (E722)
 ignore = ["E402", "E722"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.2.0",
+    "pytest-mock>=3.15.1",
+    "ruff>=0.4.3",
+]
