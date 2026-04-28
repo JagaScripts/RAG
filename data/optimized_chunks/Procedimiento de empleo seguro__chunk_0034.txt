@@ -1,0 +1,1 @@
+SS Stateful Composite Scoring Service SPF Sender Policy Framework SMTP Simple Mail Transfer Protocol TAP Targeted Attack Protection TLS Transport Layer Security URL Uniform Resource Locator VIP Virtual IP ENS Esquema Nacional de Seguridad. CCN-STIC-1636 Procedimiento de empleo seguro Email Protection y Targeted Attack Protection 22 Centro Criptológico Nacional
