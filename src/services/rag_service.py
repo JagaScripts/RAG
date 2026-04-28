@@ -8,6 +8,7 @@ Utiliza LangChain + Qdrant + Google Gemini para:
 """
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from difflib import SequenceMatcher
 import os
@@ -116,6 +117,15 @@ class RAGService:
             raise ValueError(
                 "Cannot connect to Qdrant. Start it first with "
                 "`docker compose -f docker_compose.yml up -d qdrant` and verify QDRANT_URL."
+            ) from exc
+
+    def _ensure_qdrant_connection(self) -> None:
+        try:
+            self.qdrant_client.get_collections()
+        except ResponseHandlingException as exc:
+            raise ValueError(
+                "Cannot connect to Qdrant. Start it first (e.g. `docker compose -f docker_compose.yml up -d qdrant`) "
+                f"and verify QDRANT_URL={self.settings.qdrant_url}."
             ) from exc
 
     def _ensure_models(self) -> None:

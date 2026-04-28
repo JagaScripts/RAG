@@ -7,6 +7,8 @@ Define:
 """
 from contextlib import asynccontextmanager
 import logging
+from contextlib import asynccontextmanager
+import os
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
@@ -15,6 +17,7 @@ from src.services.rag_service import rag_service
 
 
 logger = logging.getLogger("uvicorn")
+api_key = os.environ.get('GEMINI_API_KEY')
 
 
 class IngestRequest(BaseModel):
@@ -67,12 +70,12 @@ app = FastAPI(
 
 
 @app.get("/")
-async def read_root() -> dict[str, str]:
+async def read_root():
     return {"message": "Phishing RAG API is running"}
 
 
 @app.get("/health")
-async def health() -> dict[str, str]:
+async def health_check():
     return {"status": "ok"}
 
 
