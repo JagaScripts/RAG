@@ -1,4 +1,4 @@
-name: Knowledge RAG CD Builder (Build & Push)
+name: CD Deployment Pipeline
 
 on:
   push:
@@ -9,7 +9,43 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
+  test:
+    name: Run Linter and Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    services:
+      qdrant:
+        image: qdrant/qdrant:latest
+        ports:
+          - 6333:6333
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Setup Python environment with uv
+        run: uv python install 3.11
+
+      - name: Sync Dependencies
+        run: uv sync
+
+      - name: Run Ruff Linter
+        run: uv run ruff check .
+
+      - name: Run Pytest
+        env:
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY != '' && secrets.GOOGLE_API_KEY || 'test-api-key-for-testing' }}
+          AUTO_INGEST_ON_STARTUP: "false"
+          RECREATE_ON_STARTUP: "false"
+        run: uv run pytest tests/ -v
+
   build-and-push-image:
+    name: Build & Push Docker Image
+    needs: test
     runs-on: ubuntu-latest
     permissions:
       contents: read
