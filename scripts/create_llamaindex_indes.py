@@ -1,18 +1,17 @@
-import sys
-
-from dotenv import load_dotenv
-
-sys.path.append(".")
-load_dotenv()
-
+# ruff: noqa: E402
 import os
+import sys
 import time
 import warnings
 
+from dotenv import load_dotenv
 from llama_index.core import SimpleDirectoryReader, StorageContext, VectorStoreIndex
 from llama_index.vector_stores.qdrant import QdrantVectorStore
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams
+
+sys.path.append(".")
+load_dotenv()
 
 from src.services.embeddings import embeddings_model_llama_index
 
@@ -36,7 +35,7 @@ client = QdrantClient(url=qdrant_url)
 try:
     client.get_collection(collection_name)
     client.delete_collection(collection_name)
-except:
+except Exception:
     pass
 
 client.create_collection(

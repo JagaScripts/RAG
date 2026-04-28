@@ -3,8 +3,6 @@ name: PR Security Guard
 on:
   pull_request:
     branches: [ main, develop ]
-  push:
-    branches: [ main, develop ]
 
 jobs:
   test:
@@ -28,18 +26,15 @@ jobs:
       - name: Setup Python environment with uv
         run: uv python install 3.11
 
-      - name: Sync Dependencies (incluyendo dev)
+      - name: Sync Dependencies
         run: uv sync
 
       - name: Run Ruff Linter
         run: uv run ruff check .
-          
-      - name: Init Qdrant Collections
-        run: |
-          curl -X PUT 'http://localhost:6333/collections/langchain_index' -H 'Content-Type: application/json' -d '{"vectors": {"size": 3072, "distance": "Cosine"}}'
-          curl -X PUT 'http://localhost:6333/collections/llamaindex_index' -H 'Content-Type: application/json' -d '{"vectors": {"size": 3072, "distance": "Cosine"}}'
 
       - name: Run Pytest
         env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY != '' && secrets.GEMINI_API_KEY || 'dummy-gemini-key' }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY != '' && secrets.GOOGLE_API_KEY || 'test-api-key-for-testing' }}
+          AUTO_INGEST_ON_STARTUP: "false"
+          RECREATE_ON_STARTUP: "false"
         run: uv run pytest tests/ -v

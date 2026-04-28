@@ -1,9 +1,8 @@
-import sys
+"""Punto de entrada para la API del RAG de phishing.
 
-sys.path.append(".")
-
+Inicia el servidor FastAPI usando Uvicorn en el puerto 8000.
+"""
 import warnings
-
 import uvicorn
 
 warnings.filterwarnings("ignore")
