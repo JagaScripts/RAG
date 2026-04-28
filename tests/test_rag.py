@@ -9,8 +9,7 @@ Incluye:
 
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import patch, MagicMock
-from pathlib import Path
+from unittest.mock import patch
 import os
 
 from src.app import app, IngestRequest, AskRequest
