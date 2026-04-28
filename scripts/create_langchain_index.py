@@ -1,19 +1,18 @@
-import sys
-
-from dotenv import load_dotenv
-
-sys.path.append(".")
-load_dotenv()
-
+# ruff: noqa: E402
 import os
+import sys
 import time
 import warnings
 from uuid import uuid4
 
+from dotenv import load_dotenv
 from langchain_community.document_loaders import DirectoryLoader, TextLoader
 from langchain_qdrant import QdrantVectorStore
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams
+
+sys.path.append(".")
+load_dotenv()
 
 from src.services.embeddings import embeddings_model_langchain
 
@@ -42,7 +41,7 @@ client = QdrantClient(url=qdrant_url)
 try:
     client.get_collection(collection_name)
     client.delete_collection(collection_name)
-except:
+except Exception:
     pass
 
 client.create_collection(

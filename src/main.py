@@ -2,6 +2,7 @@
 
 Inicia el servidor FastAPI usando Uvicorn en el puerto 8000.
 """
+import warnings
 import uvicorn
 
 warnings.filterwarnings("ignore")

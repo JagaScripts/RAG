@@ -1,21 +1,20 @@
+# ruff: noqa: E402
+import os
+import sys
+import time
 import warnings
 
-warnings.filterwarnings("ignore")
-import sys
-
 from dotenv import load_dotenv
-
-sys.path.append(".")
-load_dotenv()
-
-import os
-import time
-
 from langchain_community.document_loaders import DirectoryLoader, TextLoader
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, PointStruct, VectorParams
 
+sys.path.append(".")
+load_dotenv()
+
 from src.services.embeddings import embeddings_google_genai
+
+warnings.filterwarnings("ignore")
 
 data_path = "data/optimized_chunks"
 loader = DirectoryLoader(
@@ -40,7 +39,7 @@ client = QdrantClient(url=qdrant_url)
 try:
     client.get_collection(collection_name)
     client.delete_collection(collection_name)
-except:
+except Exception:
     pass
 
 client.create_collection(
