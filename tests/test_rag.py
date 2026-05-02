@@ -12,8 +12,8 @@ from fastapi.testclient import TestClient
 from unittest.mock import patch
 import os
 
-from src.app import app, IngestRequest, AskRequest
-from src.services.rag_service import _normalize, _as_bool, RAGService
+from rag_app.app import app, IngestRequest, AskRequest
+from rag_app.services.rag_service import _normalize, _as_bool, RAGService
 
 
 # ============================================================================
@@ -52,7 +52,7 @@ class TestRootEndpoint:
 class TestIngestEndpoint:
     """Tests para el endpoint /ingest"""
 
-    @patch("src.services.rag_service.rag_service.ingest")
+    @patch("rag_app.services.rag_service.rag_service.ingest")
     def test_ingest_with_recreate_true(self, mock_ingest):
         """Verifica que /ingest funciona con recreate=True"""
         mock_ingest.return_value = {
@@ -69,7 +69,7 @@ class TestIngestEndpoint:
         assert data["indexed_chunks"] == 44
         mock_ingest.assert_called_once_with(recreate=True)
 
-    @patch("src.services.rag_service.rag_service.ingest")
+    @patch("rag_app.services.rag_service.rag_service.ingest")
     def test_ingest_with_recreate_false(self, mock_ingest):
         """Verifica que /ingest funciona con recreate=False"""
         mock_ingest.return_value = {
@@ -83,7 +83,7 @@ class TestIngestEndpoint:
         assert response.status_code == 200
         mock_ingest.assert_called_once_with(recreate=False)
 
-    @patch("src.services.rag_service.rag_service.ingest")
+    @patch("rag_app.services.rag_service.rag_service.ingest")
     def test_ingest_handles_error(self, mock_ingest):
         """Verifica que /ingest maneja errores correctamente"""
         mock_ingest.side_effect = ValueError("Data directory does not exist")
@@ -96,7 +96,7 @@ class TestIngestEndpoint:
 class TestAskEndpoint:
     """Tests para el endpoint /ask"""
 
-    @patch("src.services.rag_service.rag_service.ask")
+    @patch("rag_app.services.rag_service.rag_service.ask")
     def test_ask_with_valid_question(self, mock_ask):
         """Verifica que /ask responde preguntas válidas"""
         mock_ask.return_value = {
@@ -118,7 +118,7 @@ class TestAskEndpoint:
         # FastAPI retorna 422 cuando Pydantic rechaza los datos
         assert response.status_code == 422
 
-    @patch("src.services.rag_service.rag_service.ask")
+    @patch("rag_app.services.rag_service.rag_service.ask")
     def test_ask_handles_error(self, mock_ask):
         """Verifica que /ask maneja errores correctamente"""
         mock_ask.side_effect = Exception("Qdrant connection failed")
@@ -259,7 +259,7 @@ class TestRAGServiceHelpers:
             service._ensure_models()
 
     @patch.object(RAGService, "_ensure_qdrant_connection")
-    @patch("src.services.rag_service.GoogleGenerativeAIEmbeddings")
+    @patch("rag_app.services.rag_service.GoogleGenerativeAIEmbeddings")
     def test_ensure_models_lazy_loads(self, mock_embeddings, mock_conn):
         """Verifica que _ensure_models hace lazy-loading"""
         with patch.dict(os.environ, {"GOOGLE_API_KEY": "test-key"}):
@@ -278,7 +278,7 @@ class TestRAGServiceHelpers:
 class TestRAGIntegration:
     """Tests de integración del flujo completo RAG (con mocks)"""
 
-    @patch("src.services.rag_service.rag_service.ask")
+    @patch("rag_app.services.rag_service.rag_service.ask")
     def test_full_ask_workflow(self, mock_ask):
         """Verifica el flujo completo de pregunta"""
         expected_response = {
@@ -294,7 +294,7 @@ class TestRAGIntegration:
         assert len(data["sources"]) == 2
         assert "Fuentes:" in data["answer"]
 
-    @patch("src.services.rag_service.rag_service.ingest")
+    @patch("rag_app.services.rag_service.rag_service.ingest")
     def test_full_ingest_workflow(self, mock_ingest):
         """Verifica el flujo completo de ingesta"""
         expected_response = {

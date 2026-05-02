@@ -12,7 +12,7 @@ import os
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
-from src.services.rag_service import rag_service
+from rag_app.services.rag_service import rag_service
 
 
 logger = logging.getLogger("uvicorn")

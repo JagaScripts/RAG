@@ -25,7 +25,7 @@ def setup_test_env():
 @pytest.fixture
 def mock_qdrant_client():
     """Mock para QdrantClient."""
-    with patch("src.services.rag_service.QdrantClient") as mock:
+    with patch("rag_app.services.rag_service.QdrantClient") as mock:
         client = MagicMock()
         client.collection_exists.return_value = True
         mock.return_value = client
@@ -35,14 +35,14 @@ def mock_qdrant_client():
 @pytest.fixture
 def mock_embeddings():
     """Mock para GoogleGenerativeAIEmbeddings."""
-    with patch("src.services.rag_service.GoogleGenerativeAIEmbeddings") as mock:
+    with patch("rag_app.services.rag_service.GoogleGenerativeAIEmbeddings") as mock:
         yield mock
 
 
 @pytest.fixture
 def mock_llm():
     """Mock para ChatGoogleGenerativeAI."""
-    with patch("src.services.rag_service.ChatGoogleGenerativeAI") as mock:
+    with patch("rag_app.services.rag_service.ChatGoogleGenerativeAI") as mock:
         llm = MagicMock()
         llm.invoke.return_value.content = "Respuesta de prueba"
         mock.return_value = llm
